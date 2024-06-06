@@ -54,7 +54,7 @@ impl Treap {
     }
 
     /// Insert `(a, u)` into the Treap. No change occurs if any other pair `(a, _)` is in the
-    /// Treap.
+    /// Treap (O(log(n))).
     pub fn insert(&mut self, a: u64, u: u64) {
         fn insert(nodes: &mut Vec<Node>, idx: Option<usize>, a: u64, u: u64) -> usize {
             let Some(idx) = idx else {
@@ -69,7 +69,6 @@ impl Treap {
                     let n = &nodes[idx];
                     let l = &nodes[l_idx];
                     if n.u < l.u {
-                        eprintln!("rot r");
                         // Rotate:
                         //
                         //     n            l
@@ -92,7 +91,6 @@ impl Treap {
                     let n = &nodes[idx];
                     let r = &nodes[r_idx];
                     if n.u < r.u {
-                        eprintln!("rot l");
                         // Rotate:
                         //
                         //     n            r
@@ -113,7 +111,7 @@ impl Treap {
         self.root = Some(insert(&mut self.nodes, self.root, a, u));
     }
 
-    /// Find a pair with the given `a`, and return its `u`, if any.
+    /// Find a pair with the given `a`, and return its `u`, if any (O(log n)).
     pub fn find_a(&self, a: u64) -> Option<u64> {
         fn find_a(nodes: &[Node], idx: Option<usize>, a: u64) -> Option<u64> {
             let Some(idx) = idx else {
@@ -126,6 +124,11 @@ impl Treap {
             }
         }
         find_a(&self.nodes, self.root, a)
+    }
+
+    /// Get the maximum value of `u` in any pair (O(1)).
+    pub fn peek_max_u(&self) -> Option<(u64, u64)> {
+        self.root.map(|idx| (self.nodes[idx].a, self.nodes[idx].u))
     }
 
     /// Check invariants.
@@ -162,18 +165,25 @@ mod tests {
         let t = Treap::new();
         assert_eq!(t.len(), 0);
         assert_eq!(t.find_a(10), None);
+        assert_eq!(t.peek_max_u(), None);
     }
 
-    fn build_and_check_no_dup(vals: &[(u64, u64)]) {
+    fn build_and_check_no_dup(vals: &[(u64, u64)]) -> Treap {
         let mut t = Treap::new();
         for (a, u) in vals {
             t.insert(*a, *u);
             dbg!(&t).check();
         }
+        // Re-insert to verify nothing bad happens
+        for (a, u) in vals {
+            t.insert(*a, *u);
+        }
+        dbg!(&t).check();
         assert_eq!(t.len(), vals.len());
         for (a, u) in vals {
             assert_eq!(t.find_a(*a), Some(*u));
         }
+        t
     }
 
     #[test]
@@ -189,5 +199,11 @@ mod tests {
     #[test]
     fn reverse_treap() {
         build_and_check_no_dup(&[(6, 10), (5, 20), (4, 30), (3, 40), (2, 50), (1, 60)]);
+    }
+
+    #[test]
+    fn mixed_treap() {
+        let t = build_and_check_no_dup(&[(3, 10), (9, 80), (2, 30), (1, 40), (8, 50), (4, 60)]);
+        assert_eq!(t.peek_max_u(), Some((9, 80)))
     }
 }
